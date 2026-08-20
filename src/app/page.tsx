@@ -69,11 +69,12 @@ const DEFAULT_SERVICES = [
 ];
 
 const DEFAULT_REVIEWS = [
-  { id: 'r1', customerName: 'Kavya S.', rating: 5, comment: 'Super fast project report printing! The golden embossed hard binding quality for our B.Tech thesis was top notch. Saved 2 hours standing in line!', date: 'Yesterday' },
-  { id: 'r2', customerName: 'Venkatesh Rao', rating: 5, comment: 'Best xerox shop in Tenali opposite VSR college. Online upload feature is super convenient. Uploaded from classroom and picked up ready prints.', date: '2 days ago' },
-  { id: 'r3', customerName: 'Anusha Reddy', rating: 5, comment: 'Clean spiral binding and very affordable rates for students. Color prints were crisp and clear. Highly recommended!', date: '3 days ago' },
-  { id: 'r4', customerName: 'Sai Teja M.', rating: 5, comment: 'Ordered 150 pages double sided project report. Ready in 15 minutes! Live tracking update is extremely useful.', date: '4 days ago' },
+  { id: 'r1', customerName: 'Kavya S.', rating: 5, comment: 'Super fast project report printing! The golden embossed hard binding quality for our B.Tech thesis was top notch. Saved 2 hours standing in line!', date: 'Yesterday', isApproved: true, isFeatured: true, createdAt: new Date() },
+  { id: 'r2', customerName: 'Venkatesh Rao', rating: 5, comment: 'Best xerox shop in Tenali opposite VSR college. Online upload feature is super convenient. Uploaded from classroom and picked up ready prints.', date: '2 days ago', isApproved: true, isFeatured: true, createdAt: new Date() },
+  { id: 'r3', customerName: 'Anusha Reddy', rating: 5, comment: 'Clean spiral binding and very affordable rates for students. Color prints were crisp and clear. Highly recommended!', date: '3 days ago', isApproved: true, isFeatured: true, createdAt: new Date() },
+  { id: 'r4', customerName: 'Sai Teja M.', rating: 5, comment: 'Ordered 150 pages double sided project report. Ready in 15 minutes! Live tracking update is extremely useful.', date: '4 days ago', isApproved: true, isFeatured: true, createdAt: new Date() },
 ];
+
 
 export default async function HomePage() {
   let services = DEFAULT_SERVICES;
