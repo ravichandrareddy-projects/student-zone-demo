@@ -9,7 +9,7 @@ interface ReviewItem {
   rating: number;
   comment: string;
   isApproved: boolean;
-  date?: string;
+  date: string | null;
 }
 
 function getInitials(name: string): string {

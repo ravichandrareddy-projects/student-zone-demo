@@ -4,7 +4,7 @@ import { verifyAdminSession } from '@/lib/auth';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await verifyAdminSession();
@@ -13,7 +13,7 @@ export async function GET(
     }
 
     const order = await prisma.order.findUnique({
-      where: { id: params.id },
+      where: { id: (await params).id },
       include: { items: true },
     });
 
@@ -29,7 +29,7 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await verifyAdminSession();
@@ -61,7 +61,7 @@ export async function PATCH(
     }
 
     const updatedOrder = await prisma.order.update({
-      where: { id: params.id },
+      where: { id: (await params).id },
       data: updateData,
       include: { items: true },
     });

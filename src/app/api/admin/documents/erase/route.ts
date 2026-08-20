@@ -64,6 +64,7 @@ export async function POST(request: Request) {
             { fileUrl: { startsWith: '/uploads/' } },
           ],
         },
+        include: { order: true },
       });
 
       let erasedCount = 0;
