@@ -1,5 +1,7 @@
+'use client';
+
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { prisma } from '@/lib/prisma';
 import {
   ShoppingBag,
   Clock,
@@ -10,28 +12,64 @@ import {
   ArrowRight,
   Eye,
   Kanban,
+  RefreshCw,
+  FileText,
 } from 'lucide-react';
 
-export const revalidate = 0; // Always fresh for admin dashboard
+interface OrderItem {
+  id: string;
+  documentName: string;
+  price: number;
+}
 
-export default async function AdminDashboardPage() {
-  const orders = await prisma.order.findMany({
-    take: 10,
-    orderBy: { createdAt: 'desc' },
-    include: { items: true },
-  });
+interface Order {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  customerMobile: string;
+  status: string;
+  estimatedReadyTime: string;
+  totalAmount: number;
+  createdAt: string;
+  items: OrderItem[];
+}
 
-  const totalOrdersCount = await prisma.order.count();
-  const newCount = await prisma.order.count({ where: { status: 'NEW' } });
-  const printingCount = await prisma.order.count({ where: { status: 'PRINTING' } });
-  const readyCount = await prisma.order.count({ where: { status: 'READY' } });
-  const completedCount = await prisma.order.count({ where: { status: 'COLLECTED' } });
+export default function AdminDashboardPage() {
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState<string>('');
 
-  // Calculate revenue
-  const totalRevenueAgg = await prisma.order.aggregate({
-    _sum: { totalAmount: true },
-  });
-  const totalRevenue = totalRevenueAgg._sum.totalAmount || 0;
+  const fetchDashboardData = async () => {
+    setIsRefreshing(true);
+    try {
+      const res = await fetch(`/api/admin/orders?t=${Date.now()}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (data.success && data.orders) {
+        setOrders(data.orders);
+        setLastRefreshed(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      }
+    } catch {
+      console.error('Failed to fetch admin dashboard orders');
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+    // Auto-refresh metrics every 15 seconds
+    const interval = setInterval(fetchDashboardData, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const totalOrdersCount = orders.length;
+  const newCount = orders.filter((o) => o.status === 'NEW').length;
+  const printingCount = orders.filter((o) => o.status === 'PRINTING').length;
+  const readyCount = orders.filter((o) => o.status === 'READY').length;
+  const completedCount = orders.filter((o) => o.status === 'COLLECTED').length;
+  const totalRevenue = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
   return (
     <div className="space-y-8">
@@ -40,15 +78,28 @@ export default async function AdminDashboardPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900">Dashboard Overview</h1>
-          <p className="text-xs text-slate-500 font-medium">Real-time store metrics for Student Zone Tenali</p>
+          <p className="text-xs text-slate-500 font-medium">
+            Real-time store metrics for Student Zone Tenali {lastRefreshed && `(Updated ${lastRefreshed})`}
+          </p>
         </div>
 
-        <Link
-          href="/admin/live"
-          className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-md transition"
-        >
-          <Kanban className="w-4 h-4" /> Open Kanban Live Order Board →
-        </Link>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={fetchDashboardData}
+            disabled={isRefreshing}
+            className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-800 text-xs font-extrabold hover:bg-slate-50 transition flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
+          >
+            <RefreshCw className={`w-4 h-4 text-blue-600 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Updating...' : 'Refresh Now'}
+          </button>
+
+          <Link
+            href="/admin/live"
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs shadow-md transition"
+          >
+            <Kanban className="w-4 h-4" /> Open Kanban Live Order Board →
+          </Link>
+        </div>
       </div>
 
       {/* METRIC CARDS */}
@@ -96,57 +147,67 @@ export default async function AdminDashboardPage() {
           </Link>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-bold border-b border-slate-200">
-              <tr>
-                <th className="px-6 py-3.5">Order Number</th>
-                <th className="px-6 py-3.5">Customer</th>
-                <th className="px-6 py-3.5">Mobile</th>
-                <th className="px-6 py-3.5">Items</th>
-                <th className="px-6 py-3.5">Status</th>
-                <th className="px-6 py-3.5">Ready Time</th>
-                <th className="px-6 py-3.5">Amount</th>
-                <th className="px-6 py-3.5 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium">
-              {orders.map((o) => (
-                <tr key={o.id} className="hover:bg-slate-50/80 transition">
-                  <td className="px-6 py-4 font-black text-blue-700">{o.orderNumber}</td>
-                  <td className="px-6 py-4 font-bold text-slate-900">{o.customerName}</td>
-                  <td className="px-6 py-4 text-slate-600">{o.customerMobile}</td>
-                  <td className="px-6 py-4 text-slate-600">{o.items.length} file(s)</td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
-                        o.status === 'READY'
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : o.status === 'PRINTING'
-                          ? 'bg-blue-100 text-blue-800'
-                          : o.status === 'NEW'
-                          ? 'bg-amber-100 text-amber-800'
-                          : 'bg-slate-100 text-slate-700'
-                      }`}
-                    >
-                      {o.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 font-bold text-slate-800">{o.estimatedReadyTime}</td>
-                  <td className="px-6 py-4 font-bold text-slate-900">₹{o.totalAmount.toFixed(2)}</td>
-                  <td className="px-6 py-4 text-right">
-                    <Link
-                      href={`/admin/orders/${o.id}`}
-                      className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold inline-flex items-center gap-1"
-                    >
-                      <Eye className="w-3.5 h-3.5" /> Manage
-                    </Link>
-                  </td>
+        {loading ? (
+          <div className="p-12 text-center text-xs text-slate-500 font-medium flex items-center justify-center gap-2">
+            <RefreshCw className="w-4 h-4 animate-spin text-blue-600" /> Loading real-time dashboard...
+          </div>
+        ) : orders.length === 0 ? (
+          <div className="p-12 text-center text-xs text-slate-500">
+            No orders placed yet.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-slate-50 text-slate-500 uppercase text-[10px] font-bold border-b border-slate-200">
+                <tr>
+                  <th className="px-6 py-3.5">Order Number</th>
+                  <th className="px-6 py-3.5">Customer</th>
+                  <th className="px-6 py-3.5">Mobile</th>
+                  <th className="px-6 py-3.5">Items</th>
+                  <th className="px-6 py-3.5">Status</th>
+                  <th className="px-6 py-3.5">Ready Time</th>
+                  <th className="px-6 py-3.5">Amount</th>
+                  <th className="px-6 py-3.5 text-right">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium">
+                {orders.slice(0, 10).map((o) => (
+                  <tr key={o.id} className="hover:bg-slate-50/80 transition">
+                    <td className="px-6 py-4 font-black text-blue-700">{o.orderNumber}</td>
+                    <td className="px-6 py-4 font-bold text-slate-900">{o.customerName}</td>
+                    <td className="px-6 py-4 text-slate-600">{o.customerMobile}</td>
+                    <td className="px-6 py-4 text-slate-600">{o.items ? o.items.length : 0} file(s)</td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
+                          o.status === 'READY'
+                            ? 'bg-emerald-100 text-emerald-800'
+                            : o.status === 'PRINTING'
+                            ? 'bg-blue-100 text-blue-800'
+                            : o.status === 'NEW'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-slate-100 text-slate-700'
+                        }`}
+                      >
+                        {o.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 font-bold text-slate-800">{o.estimatedReadyTime}</td>
+                    <td className="px-6 py-4 font-bold text-slate-900">₹{o.totalAmount.toFixed(2)}</td>
+                    <td className="px-6 py-4 text-right">
+                      <Link
+                        href={`/admin/orders/${o.id}`}
+                        className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold inline-flex items-center gap-1"
+                      >
+                        <Eye className="w-3.5 h-3.5" /> Manage
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
     </div>
