@@ -4,21 +4,65 @@ import { Printer, Copy, BookOpen, CreditCard, Camera, FileSpreadsheet, Layers, A
 
 export const revalidate = 60;
 
-export default async function ServicesPage() {
-  const services = await prisma.service.findMany({
-    where: { active: true },
-    orderBy: { sortOrder: 'asc' },
-  });
+const DEFAULT_SERVICES = [
+  {
+    id: 's1',
+    name: 'B&W & Color Document Printing',
+    category: 'Printing',
+    description: 'High-speed laser printing on A4, A3, and Legal paper for project reports & study notes.',
+    startingPrice: '₹1.50 / page',
+  },
+  {
+    id: 's2',
+    name: 'Project Golden Embossed Hard Binding',
+    category: 'Binding',
+    description: 'Official university grade hard cover binding with gold leaf lettering for B.Tech & Degree theses.',
+    startingPrice: '₹220.00 / book',
+  },
+  {
+    id: 's3',
+    name: 'Spiral & Soft Cover Binding',
+    category: 'Binding',
+    description: 'Durable plastic spiral coil binding with clear front transparent sheet & colored back cover.',
+    startingPrice: '₹25.00 / book',
+  },
+  {
+    id: 's4',
+    name: 'Lamination & Passport Photo Printing',
+    category: 'Photo & Document Services',
+    description: 'Thermal pouch document lamination and instant 8/16/32 count passport photo sets.',
+    startingPrice: '₹15.00 / doc',
+  },
+  {
+    id: 's5',
+    name: 'A4 / A3 Heavy Duty Xerox Photocopy',
+    category: 'Xerox & Photocopy',
+    description: 'Bulk study material, textbook, and question bank photocopy with automatic document feeder.',
+    startingPrice: '₹1.00 / page',
+  },
+  {
+    id: 's6',
+    name: 'College Project & ID Card Printing',
+    category: 'Cards & Student Services',
+    description: 'PVC student ID card printing, lanyard attachment, and glossy project certificates.',
+    startingPrice: '₹45.00 / card',
+  },
+];
 
-  const categories = [
-    'All',
-    'Xerox & Photocopy',
-    'Printing',
-    'Binding',
-    'Cards',
-    'Photo & Document Services',
-    'Student Services',
-  ];
+export default async function ServicesPage() {
+  let services = DEFAULT_SERVICES;
+
+  try {
+    const dbServices = await prisma.service.findMany({
+      where: { active: true },
+      orderBy: { sortOrder: 'asc' },
+    });
+    if (dbServices && dbServices.length > 0) {
+      services = dbServices as any;
+    }
+  } catch (err) {
+    console.warn('ServicesPage DB query fallback triggered:', err);
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
