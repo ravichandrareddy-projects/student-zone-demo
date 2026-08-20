@@ -1,0 +1,134 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Admin {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("ADMIN")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  mobile    String   @unique
+  email     String?
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Order {
+  id                 String      @id @default(uuid())
+  orderNumber        String      @unique // e.g., SZ-2026-1048
+  userId             String?
+  user               User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  customerName       String
+  customerMobile     String
+  customerEmail      String?
+  status             String      @default("NEW") // NEW, ACCEPTED, PRINTING, FINISHING, READY, COLLECTED, CANCELLED
+  estimatedReadyTime String?     // e.g., "12:45 PM"
+  estimatedReadyDate String?     // e.g., "2026-08-19"
+  actualReadyTime    DateTime?
+  totalAmount        Float       @default(0.0)
+  paymentStatus      String      @default("UNPAID") // UNPAID, PAID, REFUNDED
+  paymentMethod      String      @default("Pay at Store") // Pay at Store, UPI
+  customerNotes      String?
+  adminNotes         String?
+  items              OrderItem[]
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
+}
+
+model OrderItem {
+  id               String   @id @default(uuid())
+  orderId          String
+  order            Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  documentName     String
+  originalFileName String
+  fileUrl          String
+  fileSize         Int
+  fileType         String
+  copies           Int      @default(1)
+  colorMode        String   @default("B&W") // B&W, Color
+  paperSize        String   @default("A4") // A4, A3, Legal, Other
+  pageRange        String   @default("All") // All or e.g. "1-45"
+  sides            String   @default("Double-sided") // Single-sided, Double-sided
+  binding          String   @default("None") // None, Spiral, Project Binding, Soft Binding, Hard Binding
+  paperType        String   @default("70 GSM Standard") // 70 GSM Standard, 80 GSM Premium, Glossy, Photo Paper
+  itemInstructions String?
+  price            Float    @default(0.0)
+  createdAt        DateTime @default(now())
+}
+
+model Service {
+  id           String   @id @default(uuid())
+  name         String
+  category     String   // Xerox & Photocopy, Printing, Binding, Cards, Photo & Document Services, Student Services
+  description  String
+  startingPrice String?
+  icon         String   @default("Printer")
+  active       Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model PricingRate {
+  id          String   @id @default(uuid())
+  key         String   @unique // e.g. bw_a4_single, color_a4_single, spiral_binding
+  label       String
+  category    String   // Printing, Binding, Paper, Cards
+  rate        Float
+  unit        String   // per page, per item, flat
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+model AdvertisingLead {
+  id              String   @id @default(uuid())
+  leadNumber      String   @unique // e.g. ADV-1001
+  customerName    String
+  businessName    String
+  phone           String
+  email           String?
+  service         String   // Flex & Banner, Poster, Visiting Card, ID Card, Sticker, Flyer, Custom
+  quantity        Int      @default(1)
+  preferredSize   String?
+  designAvailable String   @default("No") // Yes, No
+  designFileUrl   String?
+  requirements    String?
+  quotedPrice     Float?
+  status          String   @default("New") // New, Contacted, Quotation Sent, Confirmed, In Production, Completed, Cancelled
+  adminNotes      String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Review {
+  id           String   @id @default(uuid())
+  customerName String
+  rating       Int      @default(5)
+  comment      String
+  isApproved   Boolean  @default(true)
+  isFeatured   Boolean  @default(false)
+  date         String?
+  createdAt    DateTime @default(now())
+}
+
+model Setting {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String
+  group     String   @default("general") // general, business, order, payment, notification
+  updatedAt DateTime @updatedAt
+}
