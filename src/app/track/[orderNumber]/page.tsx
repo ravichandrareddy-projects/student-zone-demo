@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import {
@@ -14,6 +14,8 @@ import {
   Printer,
   FileText,
   Sparkles,
+  X,
+  Volume2,
 } from 'lucide-react';
 
 interface OrderDetail {
@@ -43,6 +45,26 @@ interface OrderDetail {
   }>;
 }
 
+const playCustomerCompletionSound = () => {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const notes = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6 fanfare chime
+    notes.forEach((freq, idx) => {
+      const startTime = ctx.currentTime + idx * 0.12;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, startTime);
+      gain.gain.setValueAtTime(0.35, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + 0.4);
+    });
+  } catch {}
+};
+
 export default function OrderTrackingDetail() {
   const params = useParams();
   const orderNumber = typeof params?.orderNumber === 'string' ? params.orderNumber : '';
@@ -52,6 +74,10 @@ export default function OrderTrackingDetail() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<string>('');
+  const [showReadyModal, setShowReadyModal] = useState<boolean>(false);
+
+  const prevStatusRef = useRef<string>('');
+  const hasAnnouncedReadyRef = useRef<boolean>(false);
 
   const fetchOrder = async () => {
     if (!orderNumber) return;
@@ -60,9 +86,23 @@ export default function OrderTrackingDetail() {
       const res = await fetch(`/api/orders?q=${encodeURIComponent(orderNumber)}&t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
       if (data.success && data.order) {
-        setOrder(data.order);
+        const fetchedOrder: OrderDetail = data.order;
+        setOrder(fetchedOrder);
         setLastUpdated(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }));
         setError(null);
+
+        // Sound chime and popup trigger when status changes to READY or COLLECTED
+        if (
+          (fetchedOrder.status === 'READY' || fetchedOrder.status === 'COLLECTED') &&
+          !hasAnnouncedReadyRef.current &&
+          prevStatusRef.current !== 'READY'
+        ) {
+          setShowReadyModal(true);
+          hasAnnouncedReadyRef.current = true;
+          playCustomerCompletionSound();
+        }
+
+        prevStatusRef.current = fetchedOrder.status;
       } else {
         setError('Order not found. Please check your order number.');
       }
@@ -77,7 +117,7 @@ export default function OrderTrackingDetail() {
   useEffect(() => {
     if (orderNumber) {
       fetchOrder();
-      const interval = setInterval(fetchOrder, 15000);
+      const interval = setInterval(fetchOrder, 10000); // 10s live update
       return () => clearInterval(interval);
     }
   }, [orderNumber]);
@@ -124,8 +164,69 @@ export default function OrderTrackingDetail() {
   const isCollected = order.status === 'COLLECTED';
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-8 relative">
       
+      {/* SCREEN BLUR CENTER POPUP CELEBRATION NOTIFICATION FOR CUSTOMER */}
+      {showReadyModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border-2 border-emerald-400 text-slate-900 space-y-5 text-center relative animate-scale-up">
+            
+            <button
+              onClick={() => setShowReadyModal(false)}
+              className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="w-16 h-16 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/30 animate-bounce">
+              <Sparkles className="w-8 h-8" />
+            </div>
+
+            <div>
+              <span className="text-xs font-black uppercase tracking-wider text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full inline-flex items-center gap-1">
+                <Volume2 className="w-3.5 h-3.5 text-emerald-600 animate-pulse" /> Order Completed & Ready!
+              </span>
+              <h2 className="text-2xl font-black text-slate-900 mt-2">
+                Order #{order.orderNumber}
+              </h2>
+            </div>
+
+            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+              🎉 Great news, <strong>{order.customerName}</strong>! Your document print job is ready for pickup at <strong>Student Zone Tenali</strong>.
+            </p>
+
+            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-left space-y-1">
+              <div className="flex justify-between font-bold text-emerald-900">
+                <span>Shop Location:</span>
+                <span>Opposite VSR College, Main Road</span>
+              </div>
+              <div className="flex justify-between text-slate-600 pt-1">
+                <span>Payment Mode:</span>
+                <span className="font-bold text-slate-900">{order.paymentMethod} (₹{order.totalAmount.toFixed(2)})</span>
+              </div>
+            </div>
+
+            <div className="pt-2 flex flex-col sm:flex-row gap-3">
+              <a
+                href="https://maps.google.com/?q=Tenali+Andhra+Pradesh"
+                target="_blank"
+                rel="noreferrer"
+                className="flex-1 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md transition"
+              >
+                Get Directions to Shop 📍
+              </a>
+              <button
+                onClick={() => setShowReadyModal(false)}
+                className="px-5 py-3.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition"
+              >
+                Close
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* Header Banner */}
       <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 shadow-md flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
