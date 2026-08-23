@@ -19,6 +19,7 @@ import {
   Printer,
   ShieldCheck,
   Search,
+  TrendingUp,
 } from 'lucide-react';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -34,6 +35,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     { href: '/admin', label: 'Dashboard Overview', icon: LayoutDashboard },
     { href: '/admin/live', label: 'Live Order Board (Kanban)', icon: Kanban, highlight: true },
     { href: '/admin/documents', label: 'Document Vault & Erase Queue', icon: FileText, highlight: true },
+    { href: '/admin/revenue', label: 'Sales & Revenue Report', icon: TrendingUp, highlight: true },
     { href: '/admin/orders', label: 'All Orders', icon: ShoppingBag },
     { href: '/admin/services', label: 'Services Catalog', icon: Layers },
     { href: '/admin/pricing', label: 'Pricing Matrix', icon: DollarSign },

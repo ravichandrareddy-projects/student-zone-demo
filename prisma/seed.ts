@@ -4,7 +4,7 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('🌱 Starting database seed...');
+  console.log('🌱 Starting database seed (Clean Real Orders Mode)...');
 
   // 1. Seed Admin
   const adminPasswordHash = await bcrypt.hash('admin123', 10);
@@ -149,7 +149,7 @@ async function main() {
   }
   console.log('✅ Services Catalog seeded');
 
-  // 5. Seed 12 Detailed Google Local Reviews
+  // 5. Seed 12 Google Local Reviews
   const defaultReviews = [
     {
       customerName: 'Kiran Kumar',
@@ -255,211 +255,8 @@ async function main() {
   }
   console.log('✅ 12 Google Reviews seeded');
 
-  // 6. Seed Sample Orders
-  const sampleOrders = [
-    {
-      orderNumber: 'SZ-2026-1048',
-      customerName: 'Rahul Kumar',
-      customerMobile: '9876543210',
-      customerEmail: 'rahul.k@gmail.com',
-      status: 'PRINTING',
-      estimatedReadyTime: '12:45 PM',
-      totalAmount: 180.0,
-      paymentStatus: 'UNPAID',
-      paymentMethod: 'Pay at Store',
-      customerNotes: 'Please staple certificates separately.',
-      adminNotes: 'Golden embossed cover processing.',
-      items: {
-        create: [
-          {
-            documentName: 'Engineering_Project_Report.pdf',
-            originalFileName: 'Engineering_Project_Report.pdf',
-            fileUrl: '/uploads/sample_report.pdf',
-            fileSize: 4200000,
-            fileType: 'application/pdf',
-            copies: 2,
-            colorMode: 'B&W',
-            paperSize: 'A4',
-            pageRange: '1-45',
-            sides: 'Double-sided',
-            binding: 'Spiral Binding',
-            paperType: '70 GSM Standard',
-            itemInstructions: '2 copies double sided',
-            price: 180.0,
-          },
-        ],
-      },
-    },
-    {
-      orderNumber: 'SZ-2026-1049',
-      customerName: 'Priya Sharma',
-      customerMobile: '9849012345',
-      customerEmail: 'priya.s@yahoo.com',
-      status: 'READY',
-      estimatedReadyTime: '12:30 PM',
-      totalAmount: 320.0,
-      paymentStatus: 'PAID',
-      paymentMethod: 'UPI',
-      customerNotes: 'Color cover page needed.',
-      adminNotes: 'Finished & bagged at counter.',
-      items: {
-        create: [
-          {
-            documentName: 'Seminar_Presentation_Slides.pdf',
-            originalFileName: 'Seminar_Presentation_Slides.pdf',
-            fileUrl: '/uploads/sample_presentation.pdf',
-            fileSize: 2100000,
-            fileType: 'application/pdf',
-            copies: 3,
-            colorMode: 'Color',
-            paperSize: 'A4',
-            pageRange: 'All',
-            sides: 'Single-sided',
-            binding: 'Soft Binding',
-            paperType: '80 GSM Premium',
-            itemInstructions: 'Color print for slides',
-            price: 320.0,
-          },
-        ],
-      },
-    },
-    {
-      orderNumber: 'SZ-2026-1050',
-      customerName: 'Kiran Varma',
-      customerMobile: '9123456789',
-      status: 'NEW',
-      estimatedReadyTime: '1:10 PM',
-      totalAmount: 65.0,
-      paymentStatus: 'UNPAID',
-      paymentMethod: 'Pay at Store',
-      customerNotes: 'Need urgent before 1:30 PM class.',
-      items: {
-        create: [
-          {
-            documentName: 'Assignment_Unit3.pdf',
-            originalFileName: 'Assignment_Unit3.pdf',
-            fileUrl: '/uploads/sample_assignment.pdf',
-            fileSize: 850000,
-            fileType: 'application/pdf',
-            copies: 1,
-            colorMode: 'B&W',
-            paperSize: 'A4',
-            pageRange: 'All',
-            sides: 'Double-sided',
-            binding: 'Spiral Binding',
-            paperType: '70 GSM Standard',
-            price: 65.0,
-          },
-        ],
-      },
-    },
-    {
-      orderNumber: 'SZ-2026-1047',
-      customerName: 'Venkat Rao',
-      customerMobile: '9988776655',
-      status: 'FINISHING',
-      estimatedReadyTime: '12:40 PM',
-      totalAmount: 220.0,
-      paymentStatus: 'UNPAID',
-      paymentMethod: 'Pay at Store',
-      items: {
-        create: [
-          {
-            documentName: 'College_Record_Book.pdf',
-            originalFileName: 'College_Record_Book.pdf',
-            fileUrl: '/uploads/sample_record.pdf',
-            fileSize: 3100000,
-            fileType: 'application/pdf',
-            copies: 1,
-            colorMode: 'B&W',
-            paperSize: 'A4',
-            pageRange: 'All',
-            sides: 'Double-sided',
-            binding: 'Project Hard Binding',
-            paperType: '80 GSM Premium',
-            price: 220.0,
-          },
-        ],
-      },
-    },
-    {
-      orderNumber: 'SZ-2026-1046',
-      customerName: 'Anusha Reddy',
-      customerMobile: '9700112233',
-      status: 'COLLECTED',
-      estimatedReadyTime: '11:30 AM',
-      totalAmount: 40.0,
-      paymentStatus: 'PAID',
-      paymentMethod: 'UPI',
-      items: {
-        create: [
-          {
-            documentName: 'Resume_Anusha.pdf',
-            originalFileName: 'Resume_Anusha.pdf',
-            fileUrl: '/uploads/sample_resume.pdf',
-            fileSize: 450000,
-            fileType: 'application/pdf',
-            copies: 5,
-            colorMode: 'B&W',
-            paperSize: 'A4',
-            pageRange: 'All',
-            sides: 'Single-sided',
-            binding: 'None',
-            paperType: '80 GSM Premium',
-            price: 40.0,
-          },
-        ],
-      },
-    },
-  ];
-
-  await prisma.orderItem.deleteMany({});
-  await prisma.order.deleteMany({});
-
-  for (const o of sampleOrders) {
-    await prisma.order.create({ data: o });
-  }
-  console.log('✅ Sample Orders seeded');
-
-  // 7. Seed Sample Advertising Leads
-  const defaultLeads = [
-    {
-      leadNumber: 'ADV-1001',
-      customerName: 'Suresh Naidu',
-      businessName: 'Tenali Tiffins & Restaurant',
-      phone: '9848099887',
-      email: 'tenalitiffins@gmail.com',
-      service: 'Flex & Banner Printing',
-      quantity: 2,
-      preferredSize: '10ft x 4ft',
-      designAvailable: 'Yes',
-      requirements: 'Outdoor weather-proof banner with HD gloss finish.',
-      quotedPrice: 1200.0,
-      status: 'Quotation Sent',
-      adminNotes: 'Sent sample proof on WhatsApp.',
-    },
-    {
-      leadNumber: 'ADV-1002',
-      customerName: 'Dr. Madhavi',
-      businessName: 'Arogya Dental Clinic',
-      phone: '9440112233',
-      service: 'Visiting Cards',
-      quantity: 500,
-      preferredSize: 'Standard Matte 350 GSM',
-      designAvailable: 'No',
-      requirements: 'Need clean medical clinic design with appointment table on back.',
-      quotedPrice: 650.0,
-      status: 'New',
-    },
-  ];
-
-  await prisma.advertisingLead.deleteMany({});
-  for (const l of defaultLeads) {
-    await prisma.advertisingLead.create({ data: l });
-  }
-  console.log('✅ Advertising Leads seeded');
-
-  console.log('🎉 Seeding complete!');
+  // Clean Real Orders Mode: No dummy orders or dummy leads seeded!
+  console.log('🎉 Clean Seeding complete! Ready for 100% real customer orders.');
 }
 
 main()
