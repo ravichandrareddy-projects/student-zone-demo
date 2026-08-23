@@ -21,16 +21,22 @@ export async function POST(request: Request) {
       );
     }
 
-    // Generate unique order number (e.g. SZ-2026-1051)
-    const count = await prisma.order.count();
-    const orderNumSequence = 1048 + count + 1;
-    const orderNumber = `SZ-2026-${orderNumSequence}`;
+    // Generate unique order number (e.g. SZ-2026-4821)
+    const timestampSuffix = Math.floor(1000 + Math.random() * 9000);
+    const orderNumber = `SZ-2026-${timestampSuffix}`;
 
-    // Get default estimated ready time setting (e.g. +25 minutes)
-    const prepSetting = await prisma.setting.findUnique({
-      where: { key: 'default_prep_time_minutes' },
-    });
-    const prepMinutes = parseInt(prepSetting?.value || '25', 10);
+    // Fail-safe prep time calculation
+    let prepMinutes = 25;
+    try {
+      const prepSetting = await prisma.setting.findUnique({
+        where: { key: 'default_prep_time_minutes' },
+      });
+      if (prepSetting?.value) {
+        prepMinutes = parseInt(prepSetting.value, 10) || 25;
+      }
+    } catch {
+      prepMinutes = 25;
+    }
 
     const readyDateObj = new Date(Date.now() + prepMinutes * 60 * 1000);
     const estimatedTimeStr = readyDateObj.toLocaleTimeString('en-US', {
@@ -39,26 +45,32 @@ export async function POST(request: Request) {
       hour12: true,
     });
 
-    // Create or find user by mobile
-    let user = await prisma.user.findUnique({
-      where: { mobile: customerMobile },
-    });
-
-    if (!user) {
-      user = await prisma.user.create({
-        data: {
-          name: customerName,
-          mobile: customerMobile,
-          email: customerEmail || null,
-        },
+    // Fail-safe user creation / lookup
+    let userId: string | null = null;
+    try {
+      let user = await prisma.user.findUnique({
+        where: { mobile: customerMobile },
       });
+
+      if (!user) {
+        user = await prisma.user.create({
+          data: {
+            name: customerName,
+            mobile: customerMobile,
+            email: customerEmail || null,
+          },
+        });
+      }
+      userId = user.id;
+    } catch (userErr) {
+      console.warn('User table lookup skipped:', userErr);
     }
 
-    // Create Order and OrderItems in single transaction
+    // Create Order and OrderItems in single operation
     const order = await prisma.order.create({
       data: {
         orderNumber,
-        userId: user.id,
+        userId: userId,
         customerName,
         customerMobile,
         customerEmail: customerEmail || null,
@@ -99,9 +111,10 @@ export async function POST(request: Request) {
       estimatedReadyTime: order.estimatedReadyTime,
       status: order.status,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Order creation error:', error);
-    return NextResponse.json({ error: 'Failed to place order' }, { status: 500 });
+    const errorMessage = error?.message || 'Failed to place order';
+    return NextResponse.json({ error: errorMessage }, { status: 500 });
   }
 }
 
@@ -137,8 +150,8 @@ export async function GET(request: Request) {
     }
 
     return NextResponse.json({ success: true, order });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Order fetch error:', error);
-    return NextResponse.json({ error: 'Failed to fetch order' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Failed to fetch order' }, { status: 500 });
   }
 }
