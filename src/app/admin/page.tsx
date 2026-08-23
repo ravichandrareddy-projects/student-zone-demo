@@ -14,7 +14,6 @@ import {
   Kanban,
   RefreshCw,
   FileText,
-  Trash2,
 } from 'lucide-react';
 
 interface OrderItem {
@@ -58,23 +57,6 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handlePurgeDummyOrders = async () => {
-    if (!confirm('Are you sure you want to clear all sample/dummy orders?')) return;
-    setIsRefreshing(true);
-    try {
-      const res = await fetch('/api/admin/purge-orders', { method: 'POST' });
-      const data = await res.json();
-      if (data.success) {
-        setOrders([]);
-        alert('✓ All dummy orders cleared successfully!');
-      }
-    } catch {
-      alert('Failed to clear dummy orders');
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
   useEffect(() => {
     fetchDashboardData();
     // Auto-refresh metrics every 15 seconds
@@ -102,16 +84,6 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {orders.length > 0 && (
-            <button
-              onClick={handlePurgeDummyOrders}
-              className="px-3.5 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer active:scale-95"
-              title="Clear all sample dummy orders"
-            >
-              <Trash2 className="w-3.5 h-3.5" /> Clear Dummy Orders
-            </button>
-          )}
-
           <button
             onClick={fetchDashboardData}
             disabled={isRefreshing}
@@ -180,8 +152,8 @@ export default function AdminDashboardPage() {
             <RefreshCw className="w-4 h-4 animate-spin text-blue-600" /> Loading real-time dashboard...
           </div>
         ) : orders.length === 0 ? (
-          <div className="p-12 text-center text-xs text-slate-500">
-            No active orders. Fresh real customer orders will appear here automatically.
+          <div className="p-12 text-center text-xs text-slate-500 font-medium">
+            No active orders placed yet. New real customer orders will appear here automatically.
           </div>
         ) : (
           <div className="overflow-x-auto">

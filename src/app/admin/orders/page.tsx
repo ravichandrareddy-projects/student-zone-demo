@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Search, Eye, Filter, Download, Clock, RefreshCw, Trash2 } from 'lucide-react';
+import { Search, Eye, Filter, Download, Clock, RefreshCw } from 'lucide-react';
 
 interface OrderRow {
   id: string;
@@ -48,24 +48,6 @@ export default function AdminOrdersListPage() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const handlePurgeDummyOrders = async () => {
-    if (!confirm('Are you sure you want to clear all sample/dummy orders?')) return;
-    setIsRefreshing(true);
-    try {
-      const res = await fetch('/api/admin/purge-orders', { method: 'POST' });
-      const data = await res.json();
-      if (data.success) {
-        setOrders([]);
-        setToastMessage('✓ All dummy orders cleared from database!');
-        setTimeout(() => setToastMessage(null), 3000);
-      }
-    } catch {
-      alert('Failed to clear dummy orders');
-    } finally {
-      setIsRefreshing(false);
-    }
-  };
-
   useEffect(() => {
     fetchOrders();
   }, [statusFilter]);
@@ -87,15 +69,6 @@ export default function AdminOrdersListPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          {orders.length > 0 && (
-            <button
-              onClick={handlePurgeDummyOrders}
-              className="px-3.5 py-2 rounded-xl bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 text-xs font-bold transition flex items-center gap-1.5 cursor-pointer active:scale-95"
-            >
-              <Trash2 className="w-3.5 h-3.5" /> Clear Dummy Orders
-            </button>
-          )}
-
           <button
             onClick={handleManualRefresh}
             disabled={isRefreshing}
