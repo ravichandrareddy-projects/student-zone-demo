@@ -29,6 +29,45 @@ interface UploadedDocument extends DocumentConfig {
   itemInstructions: string;
 }
 
+// Smart PDF / Document page count parser
+const parsePdfPageCount = async (file: File): Promise<number> => {
+  if (file.type.includes('image') || file.name.match(/\.(jpg|jpeg|png)$/i)) {
+    return 1;
+  }
+
+  if (file.type.includes('pdf') || file.name.endsWith('.pdf')) {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const text = new TextDecoder('latin1').decode(arrayBuffer);
+
+      // Search for /Count N in page tree
+      const countMatches = text.match(/\/Count\s+(\d+)/g);
+      if (countMatches && countMatches.length > 0) {
+        const counts = countMatches
+          .map((m) => {
+            const match = m.match(/\d+/);
+            return match ? parseInt(match[0], 10) : 0;
+          })
+          .filter((n) => n > 0 && n < 10000);
+
+        if (counts.length > 0) {
+          return Math.max(...counts);
+        }
+      }
+
+      // Fallback: count /Type /Page objects
+      const pageMatches = text.match(/\/Type\s*\/Page\b/g);
+      if (pageMatches && pageMatches.length > 0) {
+        return pageMatches.length;
+      }
+    } catch (err) {
+      console.warn('PDF page count parsing error:', err);
+    }
+  }
+
+  return 1;
+};
+
 export default function OrderPage() {
   const router = useRouter();
 
@@ -121,7 +160,9 @@ export default function OrderPage() {
         const data = await res.json();
 
         if (data.success) {
-          const estPages = file.type.includes('pdf') ? 15 : 1; // estimate
+          // Detect exact PDF page count
+          const estPages = await parsePdfPageCount(file);
+
           const defaultConfig: DocumentConfig = {
             copies: 1,
             colorMode: 'B&W',
@@ -377,7 +418,7 @@ export default function OrderPage() {
                 </h3>
 
                 <div className="space-y-4">
-                  {documents.map((doc, idx) => (
+                  {documents.map((doc) => (
                     <div
                       key={doc.id}
                       className="p-5 rounded-2xl bg-slate-50 border border-slate-200 space-y-4"
@@ -393,7 +434,7 @@ export default function OrderPage() {
                               {doc.fileName}
                             </p>
                             <p className="text-[11px] text-slate-500 font-medium">
-                              {(doc.fileSize / 1024 / 1024).toFixed(2)} MB • Est. {doc.estimatedPageCount} pages
+                              {(doc.fileSize / 1024 / 1024).toFixed(2)} MB • Detected {doc.estimatedPageCount} page(s)
                             </p>
                           </div>
                         </div>
@@ -409,8 +450,21 @@ export default function OrderPage() {
                       </div>
 
                       {/* Configurations Grid */}
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 border-t border-slate-200/60 text-xs">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-slate-200/60 text-xs">
                         
+                        {/* Pages to Print */}
+                        <div>
+                          <label className="block text-[11px] font-bold text-slate-600 mb-1">Total Pages</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="5000"
+                            value={doc.estimatedPageCount}
+                            onChange={(e) => updateDocument(doc.id, { estimatedPageCount: parseInt(e.target.value) || 1 })}
+                            className="w-full px-3 py-2 rounded-xl bg-white border border-slate-300 font-extrabold text-blue-700 focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+
                         {/* Copies */}
                         <div>
                           <label className="block text-[11px] font-bold text-slate-600 mb-1">Copies</label>
