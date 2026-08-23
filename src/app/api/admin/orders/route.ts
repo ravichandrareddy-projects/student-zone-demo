@@ -9,6 +9,24 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Auto-purge dummy orders if they exist in the database (Vercel cache fallback)
+    const dummyOrderNumbers = ['SZ-2026-1046', 'SZ-2026-1047', 'SZ-2026-1048', 'SZ-2026-1049', 'SZ-2026-1050'];
+    const dummyExists = await prisma.order.findFirst({
+      where: { orderNumber: { in: dummyOrderNumbers } }
+    });
+    if (dummyExists) {
+      try {
+        await prisma.orderItem.deleteMany({
+          where: { order: { orderNumber: { in: dummyOrderNumbers } } }
+        });
+        await prisma.order.deleteMany({
+          where: { orderNumber: { in: dummyOrderNumbers } }
+        });
+      } catch (err) {
+        console.error('Auto-purge dummy orders error:', err);
+      }
+    }
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const query = searchParams.get('q');
