@@ -59,7 +59,6 @@ export default function KanbanLiveBoardPage() {
   const pendingUpdatesRef = useRef<Record<string, string>>({});
 
   const fetchOrders = async () => {
-    setIsRefreshing(true);
     try {
       const res = await fetch(`/api/admin/orders?t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
@@ -75,11 +74,17 @@ export default function KanbanLiveBoardPage() {
           status: pendingUpdatesRef.current[o.id] || o.status,
         }));
 
-        setOrders(fetchedOrders);
+        // Seamless zero-flicker state merge
+        setOrders((prev) => {
+          if (JSON.stringify(prev) === JSON.stringify(fetchedOrders)) {
+            return prev; // Keep previous array reference for 0ms DOM flicker
+          }
+          return fetchedOrders;
+        });
 
         const newOrders = fetchedOrders.filter((o) => o.status === 'NEW');
 
-        // Check if new order arrived
+        // Check if new order arrived for screen blur alert + sound
         if (!isFirstLoadRef.current && newOrders.length > prevNewCountRef.current) {
           const latestNew = newOrders[0];
           if (latestNew) {
@@ -100,6 +105,7 @@ export default function KanbanLiveBoardPage() {
   };
 
   const handleManualRefresh = async () => {
+    setIsRefreshing(true);
     await fetchOrders();
     setToastMessage('✓ Board refreshed live with latest database updates!');
     setTimeout(() => setToastMessage(null), 3000);
