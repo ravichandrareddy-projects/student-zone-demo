@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import {
   Clock,
   CheckCircle2,
@@ -14,6 +14,8 @@ import {
   AlertCircle,
   Save,
   Trash2,
+  AlertTriangle,
+  X,
 } from 'lucide-react';
 
 interface OrderDetail {
@@ -51,11 +53,14 @@ interface OrderDetail {
 
 export default function AdminOrderDetailPage() {
   const params = useParams();
+  const router = useRouter();
   const orderId = typeof params?.id === 'string' ? params.id : '';
 
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Form states
   const [status, setStatus] = useState('NEW');
@@ -110,7 +115,6 @@ export default function AdminOrderDetailPage() {
 
       const data = await res.json();
       if (data.success) {
-        alert('Order updated successfully!');
         fetchOrderDetail();
       } else {
         alert(data.error || 'Failed to update order');
@@ -119,6 +123,25 @@ export default function AdminOrderDetailPage() {
       alert('Error updating order');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteOrder = async () => {
+    if (!orderId) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        router.push('/admin/orders');
+      } else {
+        alert(data.error || 'Failed to delete order');
+      }
+    } catch {
+      alert('Error deleting order');
+    } finally {
+      setDeleting(false);
+      setDeleteModalOpen(false);
     }
   };
 
@@ -133,6 +156,56 @@ export default function AdminOrderDetailPage() {
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-12">
       
+      {/* SCREEN BLUR DELETE CONFIRMATION MODAL */}
+      {deleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border-2 border-red-200 text-slate-900 space-y-5 relative">
+            
+            <button
+              onClick={() => setDeleteModalOpen(false)}
+              className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center font-bold shadow-md">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <span className="text-xs font-black uppercase tracking-wider text-red-700 bg-red-50 px-2.5 py-0.5 rounded-md">
+                  Confirm Order Deletion
+                </span>
+                <h2 className="text-xl font-black text-slate-900 mt-1">
+                  Delete Order #{order.orderNumber}?
+                </h2>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Are you sure you want to permanently delete <strong className="text-slate-900">Order #{order.orderNumber}</strong>? This action cannot be undone and will remove all associated document items.
+            </p>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                onClick={handleDeleteOrder}
+                disabled={deleting}
+                className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 disabled:bg-slate-400 text-white font-extrabold text-xs shadow-lg transition active:scale-95"
+              >
+                {deleting ? 'Deleting Order...' : 'Yes, Delete Order'}
+              </button>
+              <button
+                onClick={() => setDeleteModalOpen(false)}
+                className="px-5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition"
+              >
+                Cancel
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* Top Header Controls */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -152,13 +225,22 @@ export default function AdminOrderDetailPage() {
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs shadow-md"
-        >
-          <Printer className="w-4 h-4" /> Print Job Sheet / Receipt
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setDeleteModalOpen(true)}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs border border-red-200 transition"
+          >
+            <Trash2 className="w-4 h-4" /> Delete Order
+          </button>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs shadow-md"
+          >
+            <Printer className="w-4 h-4" /> Print Job Sheet
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">

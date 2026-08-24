@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, CheckCircle2, XCircle, Printer } from 'lucide-react';
+import { Plus, Edit, Trash2, CheckCircle2, XCircle, Printer, AlertTriangle, X } from 'lucide-react';
 
 interface ServiceItem {
   id: string;
@@ -25,6 +25,10 @@ export default function AdminServicesManagerPage() {
   const [description, setDescription] = useState('');
   const [startingPrice, setStartingPrice] = useState('');
   const [active, setActive] = useState(true);
+
+  // Delete Confirmation Blur Modal State
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [deleteTargetName, setDeleteTargetName] = useState<string>('');
 
   const fetchServices = async () => {
     try {
@@ -70,12 +74,18 @@ export default function AdminServicesManagerPage() {
     }
   };
 
-  const handleDeleteService = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this service?')) return;
+  const promptDeleteService = (s: ServiceItem) => {
+    setDeleteTargetId(s.id);
+    setDeleteTargetName(s.name);
+  };
+
+  const confirmDeleteService = async () => {
+    if (!deleteTargetId) return;
     try {
-      const res = await fetch(`/api/admin/services?id=${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/services?id=${deleteTargetId}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
+        setDeleteTargetId(null);
         fetchServices();
       }
     } catch {
@@ -106,6 +116,55 @@ export default function AdminServicesManagerPage() {
   return (
     <div className="space-y-6">
       
+      {/* SCREEN BLUR DELETE CONFIRMATION MODAL */}
+      {deleteTargetId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border-2 border-red-200 text-slate-900 space-y-5 relative">
+            
+            <button
+              onClick={() => setDeleteTargetId(null)}
+              className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center font-bold shadow-md">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <span className="text-xs font-black uppercase tracking-wider text-red-700 bg-red-50 px-2.5 py-0.5 rounded-md">
+                  Confirm Deletion
+                </span>
+                <h2 className="text-xl font-black text-slate-900 mt-1">
+                  Delete Service?
+                </h2>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Are you sure you want to permanently delete <strong className="text-slate-900">&ldquo;{deleteTargetName}&rdquo;</strong> from your active website catalog?
+            </p>
+
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                onClick={confirmDeleteService}
+                className="flex-1 py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-extrabold text-xs shadow-lg transition active:scale-95"
+              >
+                Yes, Delete Service
+              </button>
+              <button
+                onClick={() => setDeleteTargetId(null)}
+                className="px-5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition"
+              >
+                Cancel
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-black text-slate-900">Service Catalog Manager</h1>
@@ -157,7 +216,7 @@ export default function AdminServicesManagerPage() {
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDeleteService(s.id)}
+                        onClick={() => promptDeleteService(s)}
                         className="px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 font-bold"
                       >
                         Delete
@@ -171,10 +230,10 @@ export default function AdminServicesManagerPage() {
         )}
       </div>
 
-      {/* MODAL FORM */}
+      {/* MODAL FORM FOR ADD/EDIT */}
       {modalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl relative">
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl relative border border-slate-200">
             <h2 className="text-lg font-extrabold text-slate-900">
               {editingId ? 'Edit Service' : 'Add New Service'}
             </h2>

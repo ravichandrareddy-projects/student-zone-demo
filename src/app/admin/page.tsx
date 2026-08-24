@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import {
   ShoppingBag,
@@ -14,6 +14,9 @@ import {
   Kanban,
   RefreshCw,
   FileText,
+  Bell,
+  X,
+  Volume2,
 } from 'lucide-react';
 
 interface OrderItem {
@@ -34,20 +37,59 @@ interface Order {
   items: OrderItem[];
 }
 
+const playAdminNotificationSound = () => {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const playNote = (freq: number, startTime: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, startTime);
+      gain.gain.setValueAtTime(0.4, startTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.4);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(startTime);
+      osc.stop(startTime + 0.4);
+    };
+    playNote(659.25, ctx.currentTime); // E5
+    playNote(880.00, ctx.currentTime + 0.18); // A5
+  } catch {}
+};
+
 export default function AdminDashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<string>('');
+  const [newOrderAlert, setNewOrderAlert] = useState<Order | null>(null);
+
+  const prevNewCountRef = useRef<number>(0);
+  const isFirstLoadRef = useRef<boolean>(true);
 
   const fetchDashboardData = async () => {
     setIsRefreshing(true);
     try {
       const res = await fetch(`/api/admin/orders?t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
-      if (data.success && data.orders) {
-        setOrders(data.orders);
+      if (data.success && Array.isArray(data.orders)) {
+        const fetchedOrders: Order[] = data.orders;
+        setOrders(fetchedOrders);
         setLastRefreshed(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+
+        const newOrders = fetchedOrders.filter((o) => o.status === 'NEW');
+
+        // Check if new order arrived for screen blur alert + chime sound
+        if (!isFirstLoadRef.current && newOrders.length > prevNewCountRef.current) {
+          const latestNew = newOrders[0];
+          if (latestNew) {
+            setNewOrderAlert(latestNew);
+            playAdminNotificationSound();
+          }
+        }
+
+        prevNewCountRef.current = newOrders.length;
+        isFirstLoadRef.current = false;
       }
     } catch {
       console.error('Failed to fetch admin dashboard orders');
@@ -59,8 +101,8 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
-    // Auto-refresh metrics every 15 seconds
-    const interval = setInterval(fetchDashboardData, 15000);
+    // Auto-refresh metrics every 10 seconds for real-time order detection
+    const interval = setInterval(fetchDashboardData, 10000);
     return () => clearInterval(interval);
   }, []);
 
@@ -72,8 +114,69 @@ export default function AdminDashboardPage() {
   const totalRevenue = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 relative">
       
+      {/* SCREEN BLUR NEW ORDER POPUP ALERT MODAL */}
+      {newOrderAlert && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border-2 border-amber-400 text-slate-900 space-y-5 relative">
+            
+            <button
+              onClick={() => setNewOrderAlert(null)}
+              className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 transition"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-bold shadow-lg animate-bounce">
+                <Bell className="w-6 h-6" />
+              </div>
+              <div>
+                <span className="text-xs font-black uppercase tracking-wider text-amber-700 bg-amber-100 px-2.5 py-0.5 rounded-md flex items-center gap-1">
+                  <Volume2 className="w-3.5 h-3.5 text-amber-600 animate-pulse" /> New Order Received!
+                </span>
+                <h2 className="text-xl font-black text-slate-900 mt-1">
+                  Order #{newOrderAlert.orderNumber}
+                </h2>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-500">Customer Name:</span>
+                <span className="font-bold text-slate-900">{newOrderAlert.customerName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Mobile Number:</span>
+                <span className="font-bold text-slate-900">{newOrderAlert.customerMobile}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Order Amount:</span>
+                <span className="font-black text-blue-700 text-sm">₹{newOrderAlert.totalAmount.toFixed(2)}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <Link
+                href="/admin/live"
+                onClick={() => setNewOrderAlert(null)}
+                className="flex-1 py-3 text-center rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold text-xs shadow-lg transition active:scale-95"
+              >
+                Open Live Kanban Board →
+              </Link>
+              <button
+                onClick={() => setNewOrderAlert(null)}
+                className="px-4 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition"
+              >
+                Dismiss
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
