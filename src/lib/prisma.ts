@@ -1,8 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 
-// Default Supabase PostgreSQL connection string
+// Supabase PostgreSQL direct connection string
 const defaultDbUrl =
-  'postgresql://postgres.ndvolauboofufgwbmlop:Puttu%40455727@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres';
+  'postgresql://postgres:Puttu%40455727@db.ndvolauboofufgwbmlop.supabase.co:5432/postgres';
 
 const activeDbUrl =
   process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('postgres')
