@@ -31,8 +31,13 @@ export default function AdminOrdersListPage() {
       const url = `/api/admin/orders?status=${statusFilter}&q=${encodeURIComponent(searchQuery)}&t=${Date.now()}`;
       const res = await fetch(url, { cache: 'no-store' });
       const data = await res.json();
-      if (data.success) {
-        setOrders(data.orders);
+      if (data.success && Array.isArray(data.orders)) {
+        setOrders((prev) => {
+          if (JSON.stringify(prev) === JSON.stringify(data.orders)) {
+            return prev;
+          }
+          return data.orders;
+        });
       }
     } catch {
       console.error('Error fetching admin orders');

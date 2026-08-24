@@ -74,7 +74,12 @@ export default function AdminDashboardPage() {
       const data = await res.json();
       if (data.success && Array.isArray(data.orders)) {
         const fetchedOrders: Order[] = data.orders;
-        setOrders(fetchedOrders);
+        setOrders((prev) => {
+          if (JSON.stringify(prev) === JSON.stringify(fetchedOrders)) {
+            return prev;
+          }
+          return fetchedOrders;
+        });
         setLastRefreshed(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
 
         const newOrders = fetchedOrders.filter((o) => o.status === 'NEW');
