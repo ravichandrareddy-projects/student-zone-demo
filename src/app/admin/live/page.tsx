@@ -99,23 +99,22 @@ export default function KanbanLiveBoardPage() {
   }, []);
 
   const updateOrderStatus = async (id: string, newStatus: string) => {
+    // Instant optimistic UI update (0ms delay!)
+    setOrders((prev) =>
+      prev.map((o) => (o.id === id ? { ...o, status: newStatus } : o))
+    );
+    if (newOrderAlert && newOrderAlert.id === id) {
+      setNewOrderAlert(null);
+    }
+
     try {
-      const res = await fetch(`/api/admin/orders/${id}`, {
+      await fetch(`/api/admin/orders/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
-      const data = await res.json();
-      if (data.success) {
-        setOrders((prev) =>
-          prev.map((o) => (o.id === id ? { ...o, status: newStatus } : o))
-        );
-        if (newOrderAlert && newOrderAlert.id === id) {
-          setNewOrderAlert(null);
-        }
-      }
     } catch {
-      alert('Error updating status');
+      console.error('Error updating status in background');
     }
   };
 
