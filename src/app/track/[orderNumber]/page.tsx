@@ -95,7 +95,8 @@ export default function OrderTrackingDetail() {
         if (
           (fetchedOrder.status === 'READY' || fetchedOrder.status === 'COLLECTED') &&
           !hasAnnouncedReadyRef.current &&
-          prevStatusRef.current !== 'READY'
+          prevStatusRef.current !== 'READY' &&
+          prevStatusRef.current !== 'COLLECTED'
         ) {
           setShowReadyModal(true);
           hasAnnouncedReadyRef.current = true;
@@ -184,7 +185,7 @@ export default function OrderTrackingDetail() {
 
             <div>
               <span className="text-xs font-black uppercase tracking-wider text-emerald-800 bg-emerald-100 px-3 py-1 rounded-full inline-flex items-center gap-1">
-                <Volume2 className="w-3.5 h-3.5 text-emerald-600 animate-pulse" /> Order Completed & Ready!
+                <Volume2 className="w-3.5 h-3.5 text-emerald-600 animate-pulse" /> {isCollected ? 'Order Completed & Collected!' : 'Order Completed & Ready!'}
               </span>
               <h2 className="text-2xl font-black text-slate-900 mt-2">
                 Order #{order.orderNumber}
@@ -192,7 +193,7 @@ export default function OrderTrackingDetail() {
             </div>
 
             <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
-              🎉 Great news, <strong>{order.customerName}</strong>! Your document print job is ready for pickup at <strong>Student Zone Tenali</strong>.
+              🎉 Great news, <strong>{order.customerName}</strong>! Your document print job is {isCollected ? 'successfully collected!' : 'ready for pickup at Student Zone Tenali.'}
             </p>
 
             <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-left space-y-1">
@@ -278,17 +279,29 @@ export default function OrderTrackingDetail() {
       )}
 
       {/* ESTIMATED TIME CARD */}
-      <div className="bg-gradient-to-r from-blue-900 to-indigo-900 p-6 sm:p-8 rounded-3xl text-white shadow-lg flex flex-col sm:flex-row items-center justify-between gap-6">
+      <div className={`p-6 sm:p-8 rounded-3xl text-white shadow-lg flex flex-col sm:flex-row items-center justify-between gap-6 transition ${
+        isCollected
+          ? 'bg-gradient-to-r from-emerald-900 to-teal-950 border border-emerald-700/50'
+          : 'bg-gradient-to-r from-blue-900 to-indigo-900'
+      }`}>
         <div className="space-y-1 text-center sm:text-left">
           <span className="text-xs text-blue-300 font-semibold uppercase tracking-wider">
-            Estimated Ready Time
+            {isCollected ? 'Order Completion Status' : 'Estimated Ready Time'}
           </span>
           <div className="text-3xl sm:text-4xl font-black text-amber-400 flex items-center justify-center sm:justify-start gap-2">
-            <Clock className="w-8 h-8 text-amber-400" />
-            {order.estimatedReadyTime || '25 minutes'}
+            {isCollected ? (
+              <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+            ) : (
+              <Clock className="w-8 h-8 text-amber-400" />
+            )}
+            {isCollected ? 'COLLECTED & COMPLETED ✓' : (order.estimatedReadyTime || '25 minutes')}
           </div>
           <p className="text-xs text-slate-300">
-            {isReady ? 'Order completed and waiting for pickup!' : 'Subject to current shop queue.'}
+            {isCollected
+              ? 'Documents collected from Student Zone Tenali counter.'
+              : isReady
+              ? 'Order completed and waiting for pickup!'
+              : 'Subject to current shop queue.'}
           </p>
         </div>
 
@@ -296,7 +309,9 @@ export default function OrderTrackingDetail() {
           <span className="text-xs text-slate-300 block">Total Amount</span>
           <span className="text-2xl font-black text-white">₹{order.totalAmount.toFixed(2)}</span>
           <span className="text-[11px] block font-bold text-emerald-300">
-            {order.paymentStatus === 'PAID' ? '✓ PAID (' + order.paymentMethod + ')' : 'PAY AT PICKUP (' + order.paymentMethod + ')'}
+            {isCollected || order.paymentStatus === 'PAID'
+              ? '✓ PAID (' + order.paymentMethod + ')'
+              : 'PAY AT PICKUP (' + order.paymentMethod + ')'}
           </span>
         </div>
       </div>
@@ -318,9 +333,9 @@ export default function OrderTrackingDetail() {
                   <div
                     className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-black transition-all ${
                       isDone
-                        ? 'bg-blue-600 text-white shadow-md shadow-blue-500/30'
+                        ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/30'
                         : 'bg-slate-100 text-slate-400 border border-slate-200'
-                    } ${isCurrent ? 'ring-4 ring-blue-100 border-2 border-blue-600 animate-pulse' : ''}`}
+                    } ${isCurrent && !isCollected ? 'ring-4 ring-blue-100 border-2 border-blue-600 animate-pulse' : ''}`}
                   >
                     {isDone ? <CheckCircle2 className="w-5 h-5" /> : idx + 1}
                   </div>
@@ -329,8 +344,8 @@ export default function OrderTrackingDetail() {
                       {step.label}
                     </p>
                     {isCurrent && (
-                      <span className="text-[10px] text-blue-600 font-semibold uppercase block">
-                        In Progress
+                      <span className={`text-[10px] font-semibold uppercase block ${isCollected ? 'text-emerald-700' : 'text-blue-600'}`}>
+                        {isCollected ? 'Completed ✓' : 'In Progress'}
                       </span>
                     )}
                   </div>
@@ -369,53 +384,23 @@ export default function OrderTrackingDetail() {
                     {item.colorMode}
                   </span>
                   <span className="bg-white px-2 py-0.5 rounded border border-slate-200">
-                    {item.paperSize} ({item.sides})
+                    {item.paperSize}
                   </span>
                   <span className="bg-white px-2 py-0.5 rounded border border-slate-200">
-                    Binding: {item.binding}
+                    {item.sides}
+                  </span>
+                  <span className="bg-white px-2 py-0.5 rounded border border-slate-200">
+                    {item.binding}
                   </span>
                 </div>
               </div>
 
-              <div className="text-right">
-                <span className="text-slate-400 block text-[10px]">Item Subtotal</span>
-                <span className="font-bold text-slate-900 text-sm">₹{item.price.toFixed(2)}</span>
+              <div className="text-left sm:text-right shrink-0">
+                <span className="text-[10px] text-slate-400 block font-medium">Subtotal</span>
+                <span className="font-extrabold text-slate-900 text-sm">₹{item.price.toFixed(2)}</span>
               </div>
             </div>
           ))}
-        </div>
-
-        {order.customerNotes && (
-          <div className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
-            <strong>Your Instructions:</strong> &ldquo;{order.customerNotes}&rdquo;
-          </div>
-        )}
-      </div>
-
-      {/* SHOP LOCATION & ASSISTANCE */}
-      <div className="bg-slate-900 text-white p-6 sm:p-8 rounded-3xl space-y-4">
-        <h3 className="font-bold text-base text-white flex items-center gap-2">
-          <MapPin className="w-5 h-5 text-blue-400" /> Shop Pickup Information
-        </h3>
-        <p className="text-xs text-slate-300">
-          <strong>Student Zone Xerox & Binding Shop</strong> • Main Road, Opposite VSR College, Tenali, AP.
-        </p>
-
-        <div className="flex flex-wrap gap-3 pt-2">
-          <a
-            href="tel:+919848012345"
-            className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-2"
-          >
-            <Phone className="w-4 h-4" /> Call Shop
-          </a>
-          <a
-            href={`https://wa.me/919848012345?text=Hi%20Student%20Zone,%20checking%20status%20for%20order%20${order.orderNumber}`}
-            target="_blank"
-            rel="noreferrer"
-            className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2"
-          >
-            <MessageSquare className="w-4 h-4" /> WhatsApp Shop
-          </a>
         </div>
       </div>
 
