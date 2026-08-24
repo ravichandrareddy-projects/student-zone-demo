@@ -13,6 +13,7 @@ import {
   X,
   Volume2,
 } from 'lucide-react';
+import { getCachedAdminOrders, setCachedAdminOrders } from '@/lib/adminCache';
 
 interface OrderKanbanCard {
   id: string;
@@ -48,8 +49,9 @@ const playAdminNotificationSound = () => {
 
 export default function KanbanLiveBoardPage() {
   const router = useRouter();
-  const [orders, setOrders] = useState<OrderKanbanCard[]>([]);
-  const [loading, setLoading] = useState(true);
+  const initialCache = getCachedAdminOrders();
+  const [orders, setOrders] = useState<OrderKanbanCard[]>(initialCache);
+  const [loading, setLoading] = useState<boolean>(initialCache.length === 0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [newOrderAlert, setNewOrderAlert] = useState<OrderKanbanCard | null>(null);
@@ -73,6 +75,8 @@ export default function KanbanLiveBoardPage() {
           ...o,
           status: pendingUpdatesRef.current[o.id] || o.status,
         }));
+
+        setCachedAdminOrders(fetchedOrders);
 
         // Seamless zero-flicker state merge
         setOrders((prev) => {

@@ -18,6 +18,7 @@ import {
   X,
   Volume2,
 } from 'lucide-react';
+import { getCachedAdminOrders, setCachedAdminOrders } from '@/lib/adminCache';
 
 interface OrderItem {
   id: string;
@@ -58,8 +59,9 @@ const playAdminNotificationSound = () => {
 };
 
 export default function AdminDashboardPage() {
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [loading, setLoading] = useState(true);
+  const initialCache = getCachedAdminOrders();
+  const [orders, setOrders] = useState<Order[]>(initialCache);
+  const [loading, setLoading] = useState<boolean>(initialCache.length === 0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState<string>('');
   const [newOrderAlert, setNewOrderAlert] = useState<Order | null>(null);
@@ -68,12 +70,13 @@ export default function AdminDashboardPage() {
   const isFirstLoadRef = useRef<boolean>(true);
 
   const fetchDashboardData = async () => {
-    setIsRefreshing(true);
     try {
       const res = await fetch(`/api/admin/orders?t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
       if (data.success && Array.isArray(data.orders)) {
         const fetchedOrders: Order[] = data.orders;
+        setCachedAdminOrders(fetchedOrders);
+
         setOrders((prev) => {
           if (JSON.stringify(prev) === JSON.stringify(fetchedOrders)) {
             return prev;
@@ -102,6 +105,11 @@ export default function AdminDashboardPage() {
       setLoading(false);
       setIsRefreshing(false);
     }
+  };
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    await fetchDashboardData();
   };
 
   useEffect(() => {
@@ -193,7 +201,7 @@ export default function AdminDashboardPage() {
 
         <div className="flex flex-wrap items-center gap-3">
           <button
-            onClick={fetchDashboardData}
+            onClick={handleManualRefresh}
             disabled={isRefreshing}
             className="px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-slate-800 text-xs font-extrabold hover:bg-slate-50 transition flex items-center gap-2 shadow-xs cursor-pointer active:scale-95"
           >

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Search, Eye, Filter, Download, Clock, RefreshCw } from 'lucide-react';
+import { getCachedAdminOrders, setCachedAdminOrders } from '@/lib/adminCache';
 
 interface OrderRow {
   id: string;
@@ -18,20 +19,21 @@ interface OrderRow {
 }
 
 export default function AdminOrdersListPage() {
-  const [orders, setOrders] = useState<OrderRow[]>([]);
-  const [loading, setLoading] = useState(true);
+  const initialCache = getCachedAdminOrders();
+  const [orders, setOrders] = useState<OrderRow[]>(initialCache);
+  const [loading, setLoading] = useState<boolean>(initialCache.length === 0);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const fetchOrders = async () => {
-    setIsRefreshing(true);
     try {
       const url = `/api/admin/orders?status=${statusFilter}&q=${encodeURIComponent(searchQuery)}&t=${Date.now()}`;
       const res = await fetch(url, { cache: 'no-store' });
       const data = await res.json();
       if (data.success && Array.isArray(data.orders)) {
+        setCachedAdminOrders(data.orders);
         setOrders((prev) => {
           if (JSON.stringify(prev) === JSON.stringify(data.orders)) {
             return prev;
@@ -48,6 +50,7 @@ export default function AdminOrdersListPage() {
   };
 
   const handleManualRefresh = async () => {
+    setIsRefreshing(true);
     await fetchOrders();
     setToastMessage('✓ Order list refreshed.');
     setTimeout(() => setToastMessage(null), 3000);
@@ -59,6 +62,7 @@ export default function AdminOrdersListPage() {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setIsRefreshing(true);
     fetchOrders();
   };
 
