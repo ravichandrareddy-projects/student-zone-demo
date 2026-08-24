@@ -15,6 +15,7 @@ import {
   Sparkles,
   AlertCircle,
   FileCheck,
+  UserCheck,
 } from 'lucide-react';
 import { calculateItemPrice, DocumentConfig } from '@/lib/pricing';
 
@@ -76,12 +77,13 @@ export default function OrderPage() {
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
-  // Customer Details Form
+  // Customer Details Form (Auto-Saved on Device)
   const [customerName, setCustomerName] = useState('');
   const [customerMobile, setCustomerMobile] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerNotes, setCustomerNotes] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'Pay at Store' | 'UPI'>('Pay at Store');
+  const [hasRestoredDetails, setHasRestoredDetails] = useState(false);
 
   // Submission state
   const [submitting, setSubmitting] = useState(false);
@@ -92,6 +94,34 @@ export default function OrderPage() {
 
   // Pricing matrix rates loaded from DB
   const [ratesMap, setRatesMap] = useState<Record<string, number>>({});
+
+  // Auto-restore customer details from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedName = localStorage.getItem('sz_customer_name');
+      const savedMobile = localStorage.getItem('sz_customer_mobile');
+      const savedEmail = localStorage.getItem('sz_customer_email');
+      if (savedName) setCustomerName(savedName);
+      if (savedMobile) setCustomerMobile(savedMobile);
+      if (savedEmail) setCustomerEmail(savedEmail);
+      if (savedName || savedMobile) setHasRestoredDetails(true);
+    } catch {}
+  }, []);
+
+  const handleNameChange = (val: string) => {
+    setCustomerName(val);
+    try { localStorage.setItem('sz_customer_name', val); } catch {}
+  };
+
+  const handleMobileChange = (val: string) => {
+    setCustomerMobile(val);
+    try { localStorage.setItem('sz_customer_mobile', val); } catch {}
+  };
+
+  const handleEmailChange = (val: string) => {
+    setCustomerEmail(val);
+    try { localStorage.setItem('sz_customer_email', val); } catch {}
+  };
 
   useEffect(() => {
     fetch('/api/admin/pricing')
@@ -230,6 +260,13 @@ export default function OrderPage() {
       alert('Please enter your name and mobile number.');
       return;
     }
+
+    // Save details to device memory
+    try {
+      localStorage.setItem('sz_customer_name', customerName.trim());
+      localStorage.setItem('sz_customer_mobile', customerMobile.trim());
+      if (customerEmail) localStorage.setItem('sz_customer_email', customerEmail.trim());
+    } catch {}
 
     setSubmitting(true);
 
@@ -576,14 +613,22 @@ export default function OrderPage() {
 
           {/* STEP 2: CUSTOMER DETAILS */}
           <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-sm space-y-6">
-            <div className="flex items-center gap-3">
-              <span className="w-8 h-8 rounded-full bg-blue-600 text-white font-black text-sm flex items-center justify-center">
-                2
-              </span>
-              <div>
-                <h2 className="text-xl font-extrabold text-slate-900">Customer Details</h2>
-                <p className="text-xs text-slate-500">No account required. We will use your phone to notify order updates.</p>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <span className="w-8 h-8 rounded-full bg-blue-600 text-white font-black text-sm flex items-center justify-center">
+                  2
+                </span>
+                <div>
+                  <h2 className="text-xl font-extrabold text-slate-900">Customer Details</h2>
+                  <p className="text-xs text-slate-500">Saved on your device. No need to re-type next time.</p>
+                </div>
               </div>
+
+              {hasRestoredDetails && (
+                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full flex items-center gap-1">
+                  <UserCheck className="w-3.5 h-3.5 text-emerald-600" /> Saved Info Restored
+                </span>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -596,7 +641,7 @@ export default function OrderPage() {
                   required
                   placeholder="Rahul Kumar"
                   value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
+                  onChange={(e) => handleNameChange(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white"
                 />
               </div>
@@ -610,7 +655,7 @@ export default function OrderPage() {
                   required
                   placeholder="9848012345"
                   value={customerMobile}
-                  onChange={(e) => setCustomerMobile(e.target.value)}
+                  onChange={(e) => handleMobileChange(e.target.value)}
                   className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white"
                 />
               </div>
@@ -624,7 +669,7 @@ export default function OrderPage() {
                 type="email"
                 placeholder="student@example.com"
                 value={customerEmail}
-                onChange={(e) => setCustomerEmail(e.target.value)}
+                onChange={(e) => handleEmailChange(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 text-sm text-slate-900 focus:ring-2 focus:ring-blue-500 focus:bg-white"
               />
             </div>
