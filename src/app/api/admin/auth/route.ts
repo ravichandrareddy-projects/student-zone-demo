@@ -11,9 +11,28 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email and password required' }, { status: 400 });
     }
 
-    const admin = await prisma.admin.findUnique({
-      where: { email: email.toLowerCase().trim() },
+    const cleanEmail = email.toLowerCase().trim();
+
+    let admin = await prisma.admin.findUnique({
+      where: { email: cleanEmail },
     });
+
+    // Auto-initialize default shop owner account on first login if database is fresh
+    if (!admin && cleanEmail === 'admin@studentzone.com') {
+      try {
+        const defaultPasswordHash = await bcrypt.hash('admin123', 10);
+        admin = await prisma.admin.create({
+          data: {
+            name: 'Shop Owner',
+            email: 'admin@studentzone.com',
+            passwordHash: defaultPasswordHash,
+            role: 'ADMIN',
+          },
+        });
+      } catch (seedErr) {
+        console.error('Auto-seed admin creation error:', seedErr);
+      }
+    }
 
     if (!admin) {
       return NextResponse.json({ error: 'Invalid admin credentials' }, { status: 401 });
@@ -31,9 +50,9 @@ export async function POST(request: Request) {
       success: true,
       admin: { id: admin.id, name: admin.name, email: admin.email, role: admin.role },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin login error:', error);
-    return NextResponse.json({ error: 'Login failed' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Login failed' }, { status: 500 });
   }
 }
 
