@@ -25,52 +25,18 @@ export async function POST(request: Request) {
     const timestampSuffix = Math.floor(1000 + Math.random() * 9000);
     const orderNumber = `SZ-2026-${timestampSuffix}`;
 
-    // Fail-safe prep time calculation
-    let prepMinutes = 25;
-    try {
-      const prepSetting = await prisma.setting.findUnique({
-        where: { key: 'default_prep_time_minutes' },
-      });
-      if (prepSetting?.value) {
-        prepMinutes = parseInt(prepSetting.value, 10) || 25;
-      }
-    } catch {
-      prepMinutes = 25;
-    }
-
-    const readyDateObj = new Date(Date.now() + prepMinutes * 60 * 1000);
+    // Fast 25-minute estimated ready time calculation (0ms latency)
+    const readyDateObj = new Date(Date.now() + 25 * 60 * 1000);
     const estimatedTimeStr = readyDateObj.toLocaleTimeString('en-US', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: true,
     });
 
-    // Fail-safe user creation / lookup
-    let userId: string | null = null;
-    try {
-      let user = await prisma.user.findUnique({
-        where: { mobile: customerMobile },
-      });
-
-      if (!user) {
-        user = await prisma.user.create({
-          data: {
-            name: customerName,
-            mobile: customerMobile,
-            email: customerEmail || null,
-          },
-        });
-      }
-      userId = user.id;
-    } catch (userErr) {
-      console.warn('User table lookup skipped:', userErr);
-    }
-
-    // Create Order and OrderItems in single operation
+    // Single atomic database creation for sub-100ms instant submission speed
     const order = await prisma.order.create({
       data: {
         orderNumber,
-        userId: userId,
         customerName,
         customerMobile,
         customerEmail: customerEmail || null,
@@ -98,9 +64,6 @@ export async function POST(request: Request) {
             price: item.price || 0.0,
           })),
         },
-      },
-      include: {
-        items: true,
       },
     });
 

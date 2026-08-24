@@ -58,6 +58,8 @@ export default function AdminOrdersListPage() {
 
   useEffect(() => {
     fetchOrders();
+    const interval = setInterval(fetchOrders, 15000); // 15s background auto-refresh
+    return () => clearInterval(interval);
   }, [statusFilter]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {

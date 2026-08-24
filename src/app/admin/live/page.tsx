@@ -117,7 +117,7 @@ export default function KanbanLiveBoardPage() {
 
   useEffect(() => {
     fetchOrders();
-    const interval = setInterval(fetchOrders, 8000); // 8s auto-refresh for live shop monitor
+    const interval = setInterval(fetchOrders, 15000); // 15s auto-refresh for live shop monitor
     return () => clearInterval(interval);
   }, []);
 

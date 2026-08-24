@@ -61,6 +61,8 @@ export default function AdminRevenuePage() {
 
   useEffect(() => {
     fetchOrders();
+    const interval = setInterval(fetchOrders, 15000); // 15s background auto-refresh
+    return () => clearInterval(interval);
   }, []);
 
   // Compute daily summaries grouped by YYYY-MM-DD
