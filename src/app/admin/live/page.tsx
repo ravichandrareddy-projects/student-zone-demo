@@ -54,6 +54,7 @@ export default function KanbanLiveBoardPage() {
 
   const prevNewCountRef = useRef<number>(0);
   const isFirstLoadRef = useRef<boolean>(true);
+  const pendingUpdatesRef = useRef<Record<string, string>>({});
 
   const fetchOrders = async () => {
     setIsRefreshing(true);
@@ -61,7 +62,11 @@ export default function KanbanLiveBoardPage() {
       const res = await fetch(`/api/admin/orders?t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
       if (data.success && Array.isArray(data.orders)) {
-        const fetchedOrders: OrderKanbanCard[] = data.orders;
+        const fetchedOrders: OrderKanbanCard[] = data.orders.map((o: OrderKanbanCard) => ({
+          ...o,
+          status: pendingUpdatesRef.current[o.id] || o.status,
+        }));
+
         setOrders(fetchedOrders);
 
         const newOrders = fetchedOrders.filter((o) => o.status === 'NEW');
@@ -99,7 +104,8 @@ export default function KanbanLiveBoardPage() {
   }, []);
 
   const updateOrderStatus = async (id: string, newStatus: string) => {
-    // Instant optimistic UI update (0ms delay!)
+    // Lock optimistic state to prevent background poll overwrites (1-click instant!)
+    pendingUpdatesRef.current[id] = newStatus;
     setOrders((prev) =>
       prev.map((o) => (o.id === id ? { ...o, status: newStatus } : o))
     );
@@ -115,6 +121,11 @@ export default function KanbanLiveBoardPage() {
       });
     } catch {
       console.error('Error updating status in background');
+    } finally {
+      // Release lock after server has processed
+      setTimeout(() => {
+        delete pendingUpdatesRef.current[id];
+      }, 3000);
     }
   };
 
