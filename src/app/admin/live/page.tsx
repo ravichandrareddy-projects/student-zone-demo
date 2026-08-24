@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   RefreshCw,
   Clock,
@@ -46,6 +47,7 @@ const playAdminNotificationSound = () => {
 };
 
 export default function KanbanLiveBoardPage() {
+  const router = useRouter();
   const [orders, setOrders] = useState<OrderKanbanCard[]>([]);
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
@@ -61,6 +63,12 @@ export default function KanbanLiveBoardPage() {
     try {
       const res = await fetch(`/api/admin/orders?t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
+
+      if (res.status === 401) {
+        router.push('/admin/login');
+        return;
+      }
+
       if (data.success && Array.isArray(data.orders)) {
         const fetchedOrders: OrderKanbanCard[] = data.orders.map((o: OrderKanbanCard) => ({
           ...o,
@@ -104,7 +112,7 @@ export default function KanbanLiveBoardPage() {
   }, []);
 
   const updateOrderStatus = async (id: string, newStatus: string) => {
-    // Lock optimistic state to prevent background poll overwrites (1-click instant!)
+    // 1. Instant 0ms Optimistic UI update
     pendingUpdatesRef.current[id] = newStatus;
     setOrders((prev) =>
       prev.map((o) => (o.id === id ? { ...o, status: newStatus } : o))
@@ -114,18 +122,25 @@ export default function KanbanLiveBoardPage() {
     }
 
     try {
-      await fetch(`/api/admin/orders/${id}`, {
+      // 2. Persist update to Supabase DB
+      const res = await fetch(`/api/admin/orders/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus }),
       });
-    } catch {
-      console.error('Error updating status in background');
-    } finally {
-      // Release lock after server has processed
-      setTimeout(() => {
+
+      const data = await res.json();
+      if (res.status === 401) {
+        router.push('/admin/login');
+        return;
+      }
+
+      if (data.success) {
+        // Clear pending lock only after DB successfully confirmed update
         delete pendingUpdatesRef.current[id];
-      }, 3000);
+      }
+    } catch (err) {
+      console.error('Error updating order status in background:', err);
     }
   };
 
@@ -336,7 +351,7 @@ export default function KanbanLiveBoardPage() {
                           {col.key === 'NEW' && (
                             <button
                               onClick={() => updateOrderStatus(o.id, 'ACCEPTED')}
-                              className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px]"
+                              className="px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-[10px] active:scale-95"
                             >
                               Accept →
                             </button>
@@ -344,7 +359,7 @@ export default function KanbanLiveBoardPage() {
                           {col.key === 'ACCEPTED' && (
                             <button
                               onClick={() => updateOrderStatus(o.id, 'PRINTING')}
-                              className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px]"
+                              className="px-2.5 py-1 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-[10px] active:scale-95"
                             >
                               Print →
                             </button>
@@ -352,7 +367,7 @@ export default function KanbanLiveBoardPage() {
                           {col.key === 'PRINTING' && (
                             <button
                               onClick={() => updateOrderStatus(o.id, 'FINISHING')}
-                              className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-[10px]"
+                              className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-[10px] active:scale-95"
                             >
                               Finish →
                             </button>
@@ -360,7 +375,7 @@ export default function KanbanLiveBoardPage() {
                           {col.key === 'FINISHING' && (
                             <button
                               onClick={() => updateOrderStatus(o.id, 'READY')}
-                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px]"
+                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] active:scale-95"
                             >
                               Mark Ready →
                             </button>
@@ -368,7 +383,7 @@ export default function KanbanLiveBoardPage() {
                           {col.key === 'READY' && (
                             <button
                               onClick={() => updateOrderStatus(o.id, 'COLLECTED')}
-                              className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-[10px]"
+                              className="px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-[10px] active:scale-95"
                             >
                               Mark Collected ✓
                             </button>
