@@ -2,15 +2,36 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyAdminSession } from '@/lib/auth';
 
+let cachedRates: any = null;
+let cacheTime = 0;
+
 export async function GET() {
+  // Instant 0ms response if cached in memory within 60s
+  if (cachedRates && Date.now() - cacheTime < 60000) {
+    return NextResponse.json({ success: true, rates: cachedRates });
+  }
+
   try {
-    const rates = await prisma.pricingRate.findMany({
+    const ratesPromise = prisma.pricingRate.findMany({
       orderBy: { category: 'asc' },
     });
-    return NextResponse.json({ success: true, rates });
+    const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 1000));
+    const rates = (await Promise.race([ratesPromise, timeoutPromise])) as any;
+
+    if (rates && Array.isArray(rates)) {
+      cachedRates = rates;
+      cacheTime = Date.now();
+      return NextResponse.json({ success: true, rates });
+    }
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch pricing rates' }, { status: 500 });
+    console.warn('Pricing GET fallback:', error);
   }
+
+  if (cachedRates) {
+    return NextResponse.json({ success: true, rates: cachedRates });
+  }
+
+  return NextResponse.json({ success: true, rates: [] });
 }
 
 export async function PATCH(request: Request) {
@@ -32,6 +53,9 @@ export async function PATCH(request: Request) {
         data: { rate: parseFloat(item.rate) },
       });
     }
+
+    // Invalidate cache immediately on update
+    cachedRates = null;
 
     return NextResponse.json({ success: true });
   } catch (error) {

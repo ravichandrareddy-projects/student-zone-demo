@@ -1,8 +1,8 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
-import { Printer, Copy, BookOpen, CreditCard, Camera, FileSpreadsheet, Layers, ArrowRight } from 'lucide-react';
+import { Printer, ArrowRight } from 'lucide-react';
 
-export const revalidate = 60;
+export const revalidate = 3600; // Cache page for 1 hour on Vercel CDN for instant 0ms loads
 
 const DEFAULT_SERVICES = [
   {
@@ -53,12 +53,16 @@ export default async function ServicesPage() {
   let services = DEFAULT_SERVICES;
 
   try {
-    const dbServices = await prisma.service.findMany({
+    const dbPromise = prisma.service.findMany({
       where: { active: true },
       orderBy: { sortOrder: 'asc' },
     });
-    if (dbServices && dbServices.length > 0) {
-      services = dbServices as any;
+    // 1-second maximum timeout guarantee for instant page load
+    const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 1000));
+    const dbServices = (await Promise.race([dbPromise, timeoutPromise])) as any;
+
+    if (dbServices && Array.isArray(dbServices) && dbServices.length > 0) {
+      services = dbServices;
     }
   } catch (err) {
     console.warn('ServicesPage DB query fallback triggered:', err);
