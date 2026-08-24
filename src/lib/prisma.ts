@@ -1,15 +1,16 @@
 import { PrismaClient } from '@prisma/client';
 
-// Supabase IPv4 Pooler Session connection string (Required for Vercel IPv4 lambdas)
-const defaultDbUrl =
-  'postgresql://postgres.ndvolauboofufgwbmlop:Puttu%40455727@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres';
+// Fast IPv4 Supabase Pooler Connection String (Zero Timeout Lag)
+const fastSupabasePoolerUrl =
+  'postgresql://postgres.ndvolauboofufgwbmlop:Puttu%40455727@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true&connect_timeout=3';
 
+// Force fast IPv4 pooler domain to eliminate 4.5s IPv6 socket timeouts
 const activeDbUrl =
   process.env.DATABASE_URL &&
   process.env.DATABASE_URL.startsWith('postgres') &&
   !process.env.DATABASE_URL.includes('db.ndvolauboofufgwbmlop.supabase.co')
     ? process.env.DATABASE_URL
-    : defaultDbUrl;
+    : fastSupabasePoolerUrl;
 
 process.env.DATABASE_URL = activeDbUrl;
 
