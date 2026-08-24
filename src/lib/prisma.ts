@@ -1,12 +1,15 @@
 import { PrismaClient } from '@prisma/client';
 
-// Default Supabase PostgreSQL connection string fallback if Vercel ENV is unset or file-based
+// Default Supabase PostgreSQL connection string
 const defaultDbUrl =
   'postgresql://postgres.ndvolauboofufgwbmlop:Puttu%40455727@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres?pgbouncer=true';
 
-if (!process.env.DATABASE_URL || !process.env.DATABASE_URL.startsWith('postgres')) {
-  process.env.DATABASE_URL = defaultDbUrl;
-}
+const activeDbUrl =
+  process.env.DATABASE_URL && process.env.DATABASE_URL.startsWith('postgres')
+    ? process.env.DATABASE_URL
+    : defaultDbUrl;
+
+process.env.DATABASE_URL = activeDbUrl;
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -15,6 +18,11 @@ const globalForPrisma = globalThis as unknown as {
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
+    datasources: {
+      db: {
+        url: activeDbUrl,
+      },
+    },
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
   });
 
